@@ -1,3 +1,4 @@
+/* eslint-disable prefer-promise-reject-errors */
 /**
  * @file Домашка по FP ч. 2
  *
@@ -14,48 +15,62 @@
  * Иногда промисы от API будут приходить в состояние rejected, (прямо как и API в реальной жизни)
  * Ответ будет приходить в поле {result}
  */
+import {
+  __,
+  allPass,
+  andThen,
+  assoc,
+  compose,
+  concat,
+  gt,
+  ifElse,
+  length,
+  lt,
+  lte,
+  modulo,
+  otherwise,
+  prop,
+  tap,
+  toString
+} from "ramda";
+
 import Api from "../tools/api";
 
 const api = new Api();
 
-/**
- * Я – пример, удали меня
- */
-const wait = time =>
-  new Promise(resolve => {
-    setTimeout(resolve, time);
-  });
+const isPositiveNumber = compose(lte(0), Number);
+const isValid = allPass([compose(gt(10), length), compose(lt(2), length), isPositiveNumber]);
+const validate = ifElse(
+  isValid,
+  x => Promise.resolve(x),
+  () => Promise.reject("ValidationError")
+);
+const createConvertParams = assoc("number", __, { from: 10, to: 2 });
+const getResult = prop("result");
+const convertToInt = compose(Math.round, Number);
+const pow2 = x => x ** 2;
+const convertToBinary = compose(andThen(getResult), api.get("https://api.tech/numbers/base"), createConvertParams);
+const getAnimal = compose(andThen(getResult), api.get(__, {}), concat("https://animals.tech/"), toString);
 
 const processSequence = ({ value, writeLog, handleSuccess, handleError }) => {
-  /**
-   * Я – пример, удали меня
-   */
-  writeLog(value);
-
-  api
-    .get("https://api.tech/numbers/base", {
-      from: 2,
-      to: 10,
-      number: "01011010101"
-    })
-    .then(({ result }) => {
-      writeLog(result);
-    });
-
-  wait(2500)
-    .then(() => {
-      writeLog("SecondLog");
-
-      return wait(1500);
-    })
-    .then(() => {
-      writeLog("ThirdLog");
-
-      return wait(400);
-    })
-    .then(() => {
-      handleSuccess("Done");
-    });
+  const log = tap(writeLog);
+  compose(
+    otherwise(handleError),
+    andThen(handleSuccess),
+    andThen(getAnimal),
+    andThen(log),
+    andThen(modulo(__, 3)),
+    andThen(log),
+    andThen(pow2),
+    andThen(log),
+    andThen(length),
+    andThen(log),
+    andThen(convertToBinary),
+    andThen(log),
+    andThen(convertToInt),
+    validate,
+    log
+  )(value);
 };
 
 export default processSequence;
